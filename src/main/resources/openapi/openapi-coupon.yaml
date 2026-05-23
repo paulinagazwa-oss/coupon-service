@@ -1,0 +1,263 @@
+openapi: 3.0.3
+info:
+  title: Coupon-Service API
+  version: 0.0.1
+  description: OpenAPI definition to backend app in Spring Boot.
+servers:
+  - url: https://localhost:8443
+    description: Local server (HTTPS)
+  - url: http://localhost:8080
+    description: Local server (HTTP – redirects to HTTPS)
+
+tags:
+  - name: Coupon
+    description: Operations related to coupon use and registration
+
+paths:
+  /api/v1/coupon/register:
+    post:
+      tags:
+        - Coupon
+      summary: Register a new coupon
+      description: Create a new coupon with the provided details.
+      operationId: registerCoupon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCouponRequest'
+      responses:
+        '201':
+          description: Coupon created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCouponResponse'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/coupon/{couponId}:
+    get:
+      tags:
+        - Coupon
+      summary: Get coupon details
+      description: Retrieve details of a specific coupon by its ID.
+      operationId: getCouponById
+      parameters:
+        - name: couponId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Coupon details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponResponse'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/coupon/{couponId}/redeem:
+    post:
+      tags:
+        - Coupon
+      summary: Redeem a coupon
+      description: Mark a coupon as used/redeemed.
+      operationId: redeemCoupon
+      parameters:
+        - name: couponId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedeemCouponRequest' # TODO needed or JWT?
+      responses:
+        '200':
+          description: Coupon redeemed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedeemCouponResponse'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    NotFound:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    Conflict:
+      description: Conflict (e.g. duplicate name)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    CreateCouponRequest:
+      type: object
+      required:
+        - maxRedemptions
+        - discount
+        - discountType # TODO percentage or fixed amount? Needed?
+      properties:
+        name: # TODO optional, can be auto-generated if not provided or not needed at all
+          type: string
+          example: "SUMMER2024"
+        discount:
+          type: number
+          format: float
+          example: 15.0
+        discountType:
+          $ref: '#/components/schemas/DiscountType'
+        country:
+          type: string
+          description:
+            Optional. If not provided, country will be resolved automatically
+            from the request IP address (ISO 3166-1 alpha-2).
+          example: "PL"
+        maxRedemptions:
+          type: integer
+          format: int32
+          example: 100
+          minimum: 1
+
+    DiscountType:
+      type: string
+      enum: [ PERCENTAGE, FIXED_AMOUNT ]
+      example: "PERCENTAGE"
+
+    CouponResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "SUMMER2024"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-05-23T10:15:30Z"
+        maxRedemptions:
+          type: integer
+          format: int32
+          example: 100
+        discount:
+          type: number
+          format: float
+          example: 15.0
+        discountType:
+          $ref: '#/components/schemas/DiscountType'
+        currentRedemptions:
+          type: integer
+          format: int32
+          example: 0
+        country:
+          type: string
+          description: Country resolved from the request IP address (ISO 3166-1 alpha-2)
+          example: "PL"
+
+    CreateCouponResponse:
+      $ref: '#/components/schemas/CouponResponse'
+
+    RedeemCouponRequest:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          example: "jan.kowalski"
+
+    RedeemCouponResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "SUMMER2024"
+        redeemedAt:
+          type: string
+          format: date-time
+          example: "2026-05-24T14:30:00Z"
+        redeemedBy:
+          type: string
+          description: Username of the user who redeemed the coupon
+          example: "jan.kowalski"
+
+    # validation error response format
+    Problem:
+      type: object
+      required:
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          example: "https://example.com/problems/validation"
+        title:
+          type: string
+          example: "Validation failed"
+        status:
+          type: integer
+          format: int32
+          example: 400
+        detail:
+          type: string
+          example: "Feld `name` is required"
+        instance:
+          type: string
+          example: "/api/v1/coupon/register"
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          example: "name"
+        message:
+          type: string
+          example: "must not be blank"

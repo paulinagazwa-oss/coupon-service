@@ -138,4 +138,19 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().getTitle()).isEqualTo(ProblemTitles.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody().getDetail()).isEqualTo(MSG_UNEXPECTED_ERROR);
     }
+
+	@Test
+	void shouldReturn403WhenCouponCountryMismatch() {
+
+		CouponCountryMismatchException ex = new CouponCountryMismatchException("DE", "PL");
+
+		ResponseEntity<Problem> response = handler.handleCountryMismatch(ex, request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+		assertThat(response.getBody()).isNotNull();
+		assertThat(response.getBody().getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+		assertThat(response.getBody().getTitle()).isEqualTo(ProblemTitles.FORBIDDEN);
+		assertThat(response.getBody().getDetail()).contains("PL");
+	}
 }

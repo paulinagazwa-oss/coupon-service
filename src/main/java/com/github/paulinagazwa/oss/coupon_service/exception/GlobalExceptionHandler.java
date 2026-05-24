@@ -37,6 +37,11 @@ public class GlobalExceptionHandler {
         return buildProblem(HttpStatus.CONFLICT, ProblemTitles.CONFLICT, ex.getMessage(), request.getRequestURI());
     }
 
+	@ExceptionHandler(CouponCountryMismatchException.class)
+	public ResponseEntity<Problem> handleCountryMismatch(CouponCountryMismatchException ex, HttpServletRequest request) {
+		return buildProblem(HttpStatus.FORBIDDEN, ProblemTitles.FORBIDDEN, ex.getMessage(), request.getRequestURI());
+	}
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Problem> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
         List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()

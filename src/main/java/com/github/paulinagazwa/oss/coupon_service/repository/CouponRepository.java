@@ -9,4 +9,5 @@ import java.util.UUID;
 @Repository
 public interface CouponRepository extends JpaRepository<CouponEntity, UUID> {
 
+	boolean existsByName(String name);
 }

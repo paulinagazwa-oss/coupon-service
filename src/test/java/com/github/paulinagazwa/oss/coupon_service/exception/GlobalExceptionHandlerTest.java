@@ -43,6 +43,20 @@ class GlobalExceptionHandlerTest {
         when(request.getRequestURI()).thenReturn(REQUEST_URI);
     }
 
+	@Test
+	void shouldReturn400WhenDiscountIsInvalid() {
+		InvalidDiscountException ex = new InvalidDiscountException(-5.0f);
+
+		ResponseEntity<Problem> response = handler.handleInvalidDiscount(ex, request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+		assertThat(response.getBody()).isNotNull();
+		assertThat(response.getBody().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(response.getBody().getTitle()).isEqualTo(ProblemTitles.VALIDATION_FAILED);
+		assertThat(response.getBody().getDetail()).contains("-5.0");
+	}
+
     @Test
     void shouldReturn404WhenCouponNotFound() {
         UUID couponId = UUID.randomUUID();

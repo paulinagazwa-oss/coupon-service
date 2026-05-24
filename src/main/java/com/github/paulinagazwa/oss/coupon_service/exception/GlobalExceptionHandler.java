@@ -17,6 +17,11 @@ public class GlobalExceptionHandler {
 
     private static final String DETAIL_VALIDATION = "Request validation failed";
 
+	@ExceptionHandler(InvalidDiscountException.class)
+	public ResponseEntity<Problem> handleInvalidDiscount(InvalidDiscountException ex, HttpServletRequest request) {
+		return buildProblem(HttpStatus.BAD_REQUEST, ProblemTitles.VALIDATION_FAILED, ex.getMessage(), request.getRequestURI());
+	}
+
     @ExceptionHandler(CouponNotFoundException.class)
     public ResponseEntity<Problem> handleNotFound(CouponNotFoundException ex, HttpServletRequest request) {
         return buildProblem(HttpStatus.NOT_FOUND, ProblemTitles.NOT_FOUND, ex.getMessage(), request.getRequestURI());

@@ -2,10 +2,13 @@ package com.github.paulinagazwa.oss.coupon_service.service.impl;
 
 import com.github.paulinagazwa.oss.coupon_service.api.model.CouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.api.model.CreateCouponRequest;
+import com.github.paulinagazwa.oss.coupon_service.api.model.DiscountType;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.entity.CouponEntity;
+import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyExistsException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundException;
+import com.github.paulinagazwa.oss.coupon_service.exception.InvalidDiscountException;
 import com.github.paulinagazwa.oss.coupon_service.mapper.CouponMapper;
 import com.github.paulinagazwa.oss.coupon_service.repository.CouponRepository;
 import com.github.paulinagazwa.oss.coupon_service.service.CouponService;
@@ -27,17 +30,47 @@ public class CouponServiceImpl implements CouponService {
 	@Override
 	public CouponResponse createCoupon(CreateCouponRequest createCouponRequest) {
 
-		// TODO check if coupon with the same code already exists
-		// TODO check if discount is valid (e.g. not negative, not greater than 100%)
+		// Check if coupon with the same code already exists
+		ensureUniqueName(createCouponRequest.getName());
+
+		// Check if discount is valid (not negative, not greater than 100% for PERCENTAGE type)
+		ensureValidDiscount(createCouponRequest.getDiscount(), createCouponRequest.getDiscountType());
+
 		CouponEntity couponEntity = couponMapper.toEntity(createCouponRequest);
 		couponEntity.setCreatedAt(OffsetDateTime.now());
 		couponEntity.setCurrentRedemptions(0);
-		// TODO generate unique code for the coupon if not provided in the request
+
+		// Generate unique code if not provided in the request
+		generateNameIfAbsent(couponEntity);
 
 		couponEntity = couponRepository.save(couponEntity);
 
 		return couponMapper.toModel(couponEntity);
 
+	}
+
+	private void ensureUniqueName(String name) {
+
+		if (name != null && couponRepository.existsByName(name)) {
+			throw new CouponAlreadyExistsException(name);
+		}
+	}
+
+	private void ensureValidDiscount(Float discount, DiscountType discountType) {
+
+		if (discount < 0) {
+			throw new InvalidDiscountException(discount);
+		}
+		if (DiscountType.PERCENTAGE.equals(discountType) && discount > 100) {
+			throw new InvalidDiscountException(discount);
+		}
+	}
+
+	private void generateNameIfAbsent(CouponEntity couponEntity) {
+
+		if (couponEntity.getName() == null || couponEntity.getName().isBlank()) {
+			couponEntity.setName(UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase());
+		}
 	}
 
 	@Override

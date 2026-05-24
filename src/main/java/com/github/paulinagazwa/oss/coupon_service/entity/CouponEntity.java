@@ -45,6 +45,6 @@ public class CouponEntity {
 	@Column(nullable = false)
 	private Integer currentRedemptions;
 
-	@Column(length = 2, nullable = true)
+	@Column(length = 2, nullable = false)
 	private String country;
 }

@@ -6,6 +6,7 @@ import com.github.paulinagazwa.oss.coupon_service.api.model.CreateCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.service.CouponService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ import java.util.UUID;
 public class CouponController implements CouponApi {
 
 	private final CouponService couponService;
+
+	private final HttpServletRequest httpServletRequest;
 
     @Override
     public ResponseEntity<CouponResponse> registerCoupon(CreateCouponRequest createCouponRequest) {
@@ -35,8 +38,17 @@ public class CouponController implements CouponApi {
     @Override
     public ResponseEntity<RedeemCouponResponse> redeemCoupon(@PathVariable UUID couponId, RedeemCouponRequest redeemCouponRequest) {
 
-		//TODO: Get client IP address from request context and pass it to the service layer for geolocation checks
-		return ResponseEntity.status(HttpStatus.CREATED).body(couponService.redeemCoupon(couponId, redeemCouponRequest, ""));
+		String clientIp = resolveClientIpAddress(httpServletRequest);
+		return ResponseEntity.status(HttpStatus.CREATED).body(couponService.redeemCoupon(couponId, redeemCouponRequest, clientIp));
     }
+
+	private String resolveClientIpAddress(HttpServletRequest request) {
+
+		String forwarded = request.getHeader("X-Forwarded-For");
+		if (forwarded != null && !forwarded.isBlank()) {
+			return forwarded.split(",")[0].trim();
+		}
+		return request.getRemoteAddr();
+	}
 }
 

@@ -3,12 +3,17 @@ package com.github.paulinagazwa.oss.coupon_service.service.impl;
 import com.github.paulinagazwa.oss.coupon_service.api.model.CouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.api.model.CreateCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.DiscountType;
+import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponRequest;
+import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.entity.CouponEntity;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyExistsException;
+import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyRedeemedException;
+import com.github.paulinagazwa.oss.coupon_service.exception.CouponCountryMismatchException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundException;
 import com.github.paulinagazwa.oss.coupon_service.exception.InvalidDiscountException;
 import com.github.paulinagazwa.oss.coupon_service.mapper.CouponMapper;
 import com.github.paulinagazwa.oss.coupon_service.repository.CouponRepository;
+import com.github.paulinagazwa.oss.coupon_service.service.GeoLocationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -48,13 +53,24 @@ class CouponServiceImplTest {
 
 	private static final int GENERATED_NAME_LENGTH = 8;
 
-	public static final String BLANK_NAME = "   ";
+	private static final String BLANK_NAME = "   ";
+
+	private static final String CLIENT_IP = "192.168.1.1";
+
+	private static final String COUPON_COUNTRY = "PL";
+
+	private static final int PARTIAL_REDEMPTIONS = 5;
+
+	private static final String USERNAME = "jan.kowalski";
 
 	@Mock
 	private CouponRepository couponRepository;
 
 	@Mock
 	private CouponMapper couponMapper;
+
+	@Mock
+	private GeoLocationService geoLocationService;
 
 	@InjectMocks
 	private CouponServiceImpl couponService;
@@ -211,6 +227,99 @@ class CouponServiceImplTest {
 		couponService.createCoupon(request);
 
 		verify(couponRepository, never()).existsByName(any());
+	}
+
+	@Test
+	void shouldRedeemCouponSuccessfully() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, PARTIAL_REDEMPTIONS);
+		RedeemCouponResponse expectedResponse = new RedeemCouponResponse();
+
+		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
+		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
+		when(couponRepository.save(any())).thenReturn(coupon);
+		when(couponMapper.toRedeemResponse(coupon)).thenReturn(expectedResponse);
+
+		assertThat(couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isEqualTo(expectedResponse);
+	}
+
+	@Test
+	void shouldIncrementCurrentRedemptionsWhenRedeeming() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, PARTIAL_REDEMPTIONS);
+
+		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
+		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
+		when(couponRepository.save(any())).thenReturn(coupon);
+		when(couponMapper.toRedeemResponse(any())).thenReturn(new RedeemCouponResponse());
+
+		couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP);
+
+		assertThat(captorSaved().getCurrentRedemptions()).isEqualTo(PARTIAL_REDEMPTIONS + 1);
+	}
+
+	@Test
+	void shouldThrowWhenRedeemingNonExistentCoupon() {
+
+		UUID couponId = UUID.randomUUID();
+		when(couponRepository.findById(couponId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isInstanceOf(CouponNotFoundException.class);
+		verify(couponRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldThrowWhenCouponReachedMaxRedemptions() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, MAX_REDEMPTIONS);
+
+		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
+
+		assertThatThrownBy(() -> couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isInstanceOf(CouponAlreadyRedeemedException.class);
+		verify(couponRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldThrowWhenClientCountryDoesNotMatchCouponCountry() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, PARTIAL_REDEMPTIONS);
+
+		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
+		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn("DE");
+
+		assertThatThrownBy(() -> couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isInstanceOf(CouponCountryMismatchException.class);
+		verify(couponRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldCheckRedeemabilityBeforeCallingGeoLocationService() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, MAX_REDEMPTIONS);
+
+		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
+
+		assertThatThrownBy(() -> couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isInstanceOf(CouponAlreadyRedeemedException.class);
+		verify(geoLocationService, never()).resolveCountry(any());
+	}
+
+	private CouponEntity redeemableCoupon(UUID id, String country, int maxRedemptions, int currentRedemptions) {
+
+		CouponEntity coupon = new CouponEntity();
+		coupon.setId(id);
+		coupon.setCountry(country);
+		coupon.setMaxRedemptions(maxRedemptions);
+		coupon.setCurrentRedemptions(currentRedemptions);
+		return coupon;
 	}
 
 	private CreateCouponRequest request(float discount, DiscountType type) {

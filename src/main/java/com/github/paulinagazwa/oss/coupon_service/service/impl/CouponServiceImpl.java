@@ -95,6 +95,7 @@ public class CouponServiceImpl implements CouponService {
 		// Increment and save
 		// TODO make this operation atomic to prevent race conditions
 		coupon.setCurrentRedemptions(coupon.getCurrentRedemptions() + 1);
+		// TODO add userId to the coupon redemptions to prevent multiple redemptions by the same user
 		couponRepository.save(coupon);
 
 		return couponMapper.toRedeemResponse(coupon);

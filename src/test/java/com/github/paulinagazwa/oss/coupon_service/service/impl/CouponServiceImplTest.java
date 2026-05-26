@@ -82,7 +82,7 @@ class CouponServiceImplTest {
 		CouponEntity entity = entityWithName(VALID_PERCENTAGE, DiscountType.PERCENTAGE);
 		CouponResponse expectedResponse = new CouponResponse();
 
-		when(couponRepository.existsByName(COUPON_NAME)).thenReturn(false);
+		when(couponRepository.existsByNameIgnoreCase(COUPON_NAME)).thenReturn(false);
 		when(couponMapper.toEntity(request)).thenReturn(entity);
 		when(couponRepository.save(any())).thenReturn(entity);
 		when(couponMapper.toModel(entity)).thenReturn(expectedResponse);
@@ -122,7 +122,7 @@ class CouponServiceImplTest {
 		CreateCouponRequest request = requestWithName(SMALL_FIXED_DISCOUNT, DiscountType.FIXED_AMOUNT);
 		CouponEntity entity = entityWithName(SMALL_FIXED_DISCOUNT, DiscountType.FIXED_AMOUNT);
 
-		when(couponRepository.existsByName(COUPON_NAME)).thenReturn(false);
+		when(couponRepository.existsByNameIgnoreCase(COUPON_NAME)).thenReturn(false);
 		stubSave(request, entity);
 
 		couponService.createCoupon(request);
@@ -134,7 +134,7 @@ class CouponServiceImplTest {
 	void shouldThrowWhenCouponWithSameNameAlreadyExists() {
 
 		CreateCouponRequest request = requestWithName(VALID_PERCENTAGE, DiscountType.PERCENTAGE);
-		when(couponRepository.existsByName(COUPON_NAME)).thenReturn(true);
+		when(couponRepository.existsByNameIgnoreCase(COUPON_NAME)).thenReturn(true);
 
 		assertThatThrownBy(() -> couponService.createCoupon(request))
 				.isInstanceOf(CouponAlreadyExistsException.class);
@@ -210,7 +210,7 @@ class CouponServiceImplTest {
 		CouponEntity entity = entity(SMALL_FIXED_DISCOUNT, DiscountType.FIXED_AMOUNT);
 		entity.setName(BLANK_NAME);
 
-		when(couponRepository.existsByName(BLANK_NAME)).thenReturn(false);
+		when(couponRepository.existsByNameIgnoreCase(BLANK_NAME)).thenReturn(false);
 		stubSave(request, entity);
 
 		couponService.createCoupon(request);
@@ -226,7 +226,7 @@ class CouponServiceImplTest {
 
 		couponService.createCoupon(request);
 
-		verify(couponRepository, never()).existsByName(any());
+		verify(couponRepository, never()).existsByNameIgnoreCase(any());
 	}
 
 	@Test

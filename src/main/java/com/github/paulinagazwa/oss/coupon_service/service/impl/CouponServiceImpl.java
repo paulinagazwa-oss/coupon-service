@@ -57,7 +57,7 @@ public class CouponServiceImpl implements CouponService {
 
 	private void ensureUniqueName(String name) {
 
-		if (name != null && couponRepository.existsByName(name)) {
+		if (name != null && couponRepository.existsByNameIgnoreCase(name)) {
 			throw new CouponAlreadyExistsException(name);
 		}
 	}

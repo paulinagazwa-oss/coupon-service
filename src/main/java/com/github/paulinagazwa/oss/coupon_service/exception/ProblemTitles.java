@@ -8,5 +8,6 @@ public final class ProblemTitles {
     public static final String CONFLICT = "Conflict";
     public static final String VALIDATION_FAILED = "Validation failed";
     public static final String INTERNAL_SERVER_ERROR = "Internal Server Error";
+	public static final String FORBIDDEN = "Forbidden";
 }
 

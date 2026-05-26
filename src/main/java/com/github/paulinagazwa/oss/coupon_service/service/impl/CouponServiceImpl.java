@@ -7,11 +7,14 @@ import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.entity.CouponEntity;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyExistsException;
+import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyRedeemedException;
+import com.github.paulinagazwa.oss.coupon_service.exception.CouponCountryMismatchException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundException;
 import com.github.paulinagazwa.oss.coupon_service.exception.InvalidDiscountException;
 import com.github.paulinagazwa.oss.coupon_service.mapper.CouponMapper;
 import com.github.paulinagazwa.oss.coupon_service.repository.CouponRepository;
 import com.github.paulinagazwa.oss.coupon_service.service.CouponService;
+import com.github.paulinagazwa.oss.coupon_service.service.GeoLocationService;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ public class CouponServiceImpl implements CouponService {
 
 	private final CouponMapper couponMapper;
 
+	private final GeoLocationService geoLocationService;
+
 	@Override
 	public CouponResponse createCoupon(CreateCouponRequest createCouponRequest) {
 
@@ -39,6 +44,7 @@ public class CouponServiceImpl implements CouponService {
 		CouponEntity couponEntity = couponMapper.toEntity(createCouponRequest);
 		couponEntity.setCreatedAt(OffsetDateTime.now());
 		couponEntity.setCurrentRedemptions(0);
+		// TODO: Generate Country if not provided in the request (e.g. based on user's locale or IP address)
 
 		// Generate unique code if not provided in the request
 		generateNameIfAbsent(couponEntity);
@@ -74,13 +80,40 @@ public class CouponServiceImpl implements CouponService {
 	}
 
 	@Override
-	public RedeemCouponResponse redeemCoupon(RedeemCouponRequest redeemCouponRequest) {
+	public RedeemCouponResponse redeemCoupon(UUID couponId, RedeemCouponRequest redeemCouponRequest, String clientIp) {
 
-		// TODO check if coupon exists
-		// TODO check if coupon is valid for the given country (use free ip geolocation service to get the country from the request)
-		// TODO check if coupon is valid (e.g. not expired, not redeemed more than maxRedemptions)
-		// TODO increment currentRedemptions and save the coupon
-		return null;
+		// Check if coupon exists
+		CouponEntity coupon = couponRepository.findById(couponId)
+				.orElseThrow(() -> new CouponNotFoundException(couponId));
+
+		// Check if coupon is still valid
+		ensureRedeemable(coupon);
+
+		// Check country (delegated to GeoLocationService)
+		ensureValidCountry(coupon, clientIp);
+
+		// Increment and save
+		// TODO make this operation atomic to prevent race conditions
+		coupon.setCurrentRedemptions(coupon.getCurrentRedemptions() + 1);
+		// TODO add userId to the coupon redemptions to prevent multiple redemptions by the same user
+		couponRepository.save(coupon);
+
+		return couponMapper.toRedeemResponse(coupon);
+	}
+
+	private void ensureRedeemable(CouponEntity coupon) {
+
+		if (coupon.getCurrentRedemptions() >= coupon.getMaxRedemptions()) {
+			throw new CouponAlreadyRedeemedException(coupon.getId());
+		}
+	}
+
+	private void ensureValidCountry(CouponEntity coupon, String clientIp) {
+
+		String resolvedCountry = geoLocationService.resolveCountry(clientIp);
+		if (!coupon.getCountry().equalsIgnoreCase(resolvedCountry)) {
+			throw new CouponCountryMismatchException(coupon.getCountry(), resolvedCountry);
+		}
 	}
 
 	@Override

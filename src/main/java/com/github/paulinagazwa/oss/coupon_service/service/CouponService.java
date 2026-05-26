@@ -12,7 +12,7 @@ public interface CouponService {
 
 	CouponResponse createCoupon(CreateCouponRequest createCouponRequest);
 
-	RedeemCouponResponse redeemCoupon(RedeemCouponRequest redeemCouponRequest);
+	RedeemCouponResponse redeemCoupon(UUID couponId, RedeemCouponRequest redeemCouponRequest, String clientIp);
 
 	@Nullable CouponResponse getCouponById(UUID couponId);
 }

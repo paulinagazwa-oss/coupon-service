@@ -94,6 +94,8 @@ paths:
                 $ref: '#/components/schemas/RedeemCouponResponse'
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -103,6 +105,13 @@ components:
   responses:
     BadRequest:
       description: Bad request
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    Forbidden:
+      description: Access forbidden (e.g. country restriction)
       content:
         application/problem+json:
           schema:

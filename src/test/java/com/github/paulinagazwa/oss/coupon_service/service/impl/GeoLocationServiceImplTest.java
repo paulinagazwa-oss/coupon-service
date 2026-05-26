@@ -131,6 +131,14 @@ class GeoLocationServiceImplTest {
         assertThat(service.resolveCountry(VALID_IP)).isEqualTo(COUNTRY_CODE);
     }
 
+	@Test
+	void resolveCountry_plain_whenResponseNull_returnsUnknown() {
+		mockWebServer.enqueue(new MockResponse.Builder().code(200).build());
+
+		service = createService(FORMAT_PLAIN, "");
+		assertThat(service.resolveCountry(VALID_IP)).isEqualTo(UNKNOWN);
+	}
+
     @Test
     void resolveCountry_plain_whenResponseNotTwoChars_returnsUnknown() {
         mockWebServer.enqueue(plainResponse("Too Many Requests"));

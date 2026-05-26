@@ -16,6 +16,7 @@ public interface CouponMapper {
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "createdAt", ignore = true)
 	@Mapping(target = "currentRedemptions", ignore = true)
+	@Mapping(target = "userUses", ignore = true)
 	CouponEntity toEntity(CreateCouponRequest couponResponse);
 
 	@Mapping(target = "redeemedAt", expression = "java(java.time.OffsetDateTime.now())")

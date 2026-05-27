@@ -12,6 +12,7 @@ import com.github.paulinagazwa.oss.coupon_service.exception.CouponCountryMismatc
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundException;
 import com.github.paulinagazwa.oss.coupon_service.exception.InvalidDiscountException;
 import com.github.paulinagazwa.oss.coupon_service.mapper.CouponMapper;
+import com.github.paulinagazwa.oss.coupon_service.repository.AdvisoryLockRepository;
 import com.github.paulinagazwa.oss.coupon_service.repository.CouponRepository;
 import com.github.paulinagazwa.oss.coupon_service.repository.UserCouponUsesRepository;
 import com.github.paulinagazwa.oss.coupon_service.service.GeoLocationService;
@@ -29,6 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -76,6 +78,9 @@ class CouponServiceImplTest {
 
 	@Mock
 	private GeoLocationService geoLocationService;
+
+	@Mock
+	private AdvisoryLockRepository advisoryLockRepository;
 
 	@InjectMocks
 	private CouponServiceImpl couponService;
@@ -245,6 +250,7 @@ class CouponServiceImplTest {
 		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
 		when(couponRepository.save(any())).thenReturn(coupon);
 		when(couponMapper.toRedeemResponse(eq(coupon), any())).thenReturn(expectedResponse);
+		when(advisoryLockRepository.tryToLockId(anyLong())).thenReturn(true);
 
 		assertThat(couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
 				.isEqualTo(expectedResponse);
@@ -260,6 +266,7 @@ class CouponServiceImplTest {
 		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
 		when(couponRepository.save(any())).thenReturn(coupon);
 		when(couponMapper.toRedeemResponse(any(), any())).thenReturn(new RedeemCouponResponse());
+		when(advisoryLockRepository.tryToLockId(anyLong())).thenReturn(true);
 
 		couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP);
 
@@ -321,6 +328,7 @@ class CouponServiceImplTest {
 
 		CouponEntity coupon = new CouponEntity();
 		coupon.setId(id);
+		coupon.setName(UUID.randomUUID().toString());
 		coupon.setCountry(country);
 		coupon.setMaxRedemptions(maxRedemptions);
 		coupon.setCurrentRedemptions(currentRedemptions);

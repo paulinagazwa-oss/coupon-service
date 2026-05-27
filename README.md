@@ -59,4 +59,11 @@ Coupon is created from request. The attributes: name and country are generated b
 Default service for localisation is: ip-api.com, but it can be easily replaced by parameters in `application.properties` file. If localisation service is not available, country will be set to "unknown".
 
 #### Registering coupon usage
-When registering coupon usage, the service checks if the coupon exists and is valid (not used up). If the coupon is valid, it registers the usage for the user. The service also checks if the user has already used the coupon, and if the coupon is valid for the user's country. If any of these checks fail, the service returns an appropriate error response.
+When registering coupon usage, the service checks if the coupon exists and is valid (not used up). 
+If the coupon is valid, it registers the usage for the user. The service also checks if the user has already used the coupon, and if the coupon is valid for the user's country. 
+If any of these checks fail, the service returns an appropriate error response.
+
+Only one usage of a coupon per user is allowed. If a user tries to use the same coupon multiple times, the service will return an error response indicating that the coupon has already been used by that user.
+To prevent conflicts in saving coupon usage, the service uses optimistic locking (postgres advisory lock). 
+If two users try to use the same coupon at the same time, one of them will succeed, and the other will receive an error response indicating that the coupon has already is in use.
+If business logic allow pulling infos after registration coupon usage, it should be changed to Apache Kafka or RabbitMQ, to ensure eventual consistency and avoid conflicts in saving coupon usage.

@@ -13,6 +13,7 @@ import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundExcept
 import com.github.paulinagazwa.oss.coupon_service.exception.InvalidDiscountException;
 import com.github.paulinagazwa.oss.coupon_service.mapper.CouponMapper;
 import com.github.paulinagazwa.oss.coupon_service.repository.CouponRepository;
+import com.github.paulinagazwa.oss.coupon_service.repository.UserCouponUsesRepository;
 import com.github.paulinagazwa.oss.coupon_service.service.GeoLocationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,6 +67,9 @@ class CouponServiceImplTest {
 
 	@Mock
 	private CouponRepository couponRepository;
+
+	@Mock
+	private UserCouponUsesRepository userCouponUsesRepository;
 
 	@Mock
 	private CouponMapper couponMapper;
@@ -239,7 +244,7 @@ class CouponServiceImplTest {
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
 		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
 		when(couponRepository.save(any())).thenReturn(coupon);
-		when(couponMapper.toRedeemResponse(coupon)).thenReturn(expectedResponse);
+		when(couponMapper.toRedeemResponse(eq(coupon), any())).thenReturn(expectedResponse);
 
 		assertThat(couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
 				.isEqualTo(expectedResponse);
@@ -254,7 +259,7 @@ class CouponServiceImplTest {
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
 		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
 		when(couponRepository.save(any())).thenReturn(coupon);
-		when(couponMapper.toRedeemResponse(any())).thenReturn(new RedeemCouponResponse());
+		when(couponMapper.toRedeemResponse(any(), any())).thenReturn(new RedeemCouponResponse());
 
 		couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP);
 

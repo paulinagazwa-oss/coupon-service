@@ -20,6 +20,6 @@ public interface CouponMapper {
 	CouponEntity toEntity(CreateCouponRequest couponResponse);
 
 	@Mapping(target = "redeemedAt", expression = "java(java.time.OffsetDateTime.now())")
-	@Mapping(target = "redeemedBy", ignore = true)
-	RedeemCouponResponse toRedeemResponse(CouponEntity coupon);
+	@Mapping(target = "redeemedBy", source = "username")
+	RedeemCouponResponse toRedeemResponse(CouponEntity coupon, String username);
 }

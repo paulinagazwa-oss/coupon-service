@@ -43,7 +43,7 @@ see: OpenAPI: [openapi-coupon.yaml](src/main/resources/openapi/openapi-coupon.ya
 ## Notes
 ### Authentication and Authorization
 Authentication is out of scope. For production applications, it is recommended to implement proper authentication and authorization mechanisms to secure the API endpoints. 
-This can be achieved using Spring Security or integrating with an external identity provider.
+This can be achieved using Spring Security or integrating with an external identity provider. Redirecting http to https is also recommended to ensure secure communication between clients and the server.
 Type of authentication (e.g. JWT, OAuth2) and authorization (e.g. role-based access control) should be chosen based on the specific requirements of the application and its users.
 
 ### Business Logic

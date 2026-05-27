@@ -6,6 +6,7 @@ import com.github.paulinagazwa.oss.coupon_service.api.model.DiscountType;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.entity.CouponEntity;
+import com.github.paulinagazwa.oss.coupon_service.entity.UserCouponUsesEntity;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyExistsException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyRedeemedException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponCountryMismatchException;
@@ -13,13 +14,16 @@ import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundExcept
 import com.github.paulinagazwa.oss.coupon_service.exception.InvalidDiscountException;
 import com.github.paulinagazwa.oss.coupon_service.mapper.CouponMapper;
 import com.github.paulinagazwa.oss.coupon_service.repository.CouponRepository;
+import com.github.paulinagazwa.oss.coupon_service.repository.UserCouponUsesRepository;
 import com.github.paulinagazwa.oss.coupon_service.service.CouponService;
 import com.github.paulinagazwa.oss.coupon_service.service.GeoLocationService;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -27,6 +31,8 @@ import java.util.UUID;
 public class CouponServiceImpl implements CouponService {
 
 	private final CouponRepository couponRepository;
+
+	private final UserCouponUsesRepository userCouponUsesRepository;
 
 	private final CouponMapper couponMapper;
 
@@ -79,6 +85,7 @@ public class CouponServiceImpl implements CouponService {
 		}
 	}
 
+	@Transactional
 	@Override
 	public RedeemCouponResponse redeemCoupon(UUID couponId, RedeemCouponRequest redeemCouponRequest, String clientIp) {
 
@@ -90,15 +97,35 @@ public class CouponServiceImpl implements CouponService {
 		ensureRedeemable(coupon);
 
 		// Check country (delegated to GeoLocationService)
+		// TODO check localhost - "Unknown" error
 		ensureValidCountry(coupon, clientIp);
 
-		// Increment and save
+
+		Set<UserCouponUsesEntity> userUsesSet = coupon.getUserUses();
+		ensureUserRedeemable(couponId, redeemCouponRequest);
+
 		// TODO make this operation atomic to prevent race conditions
+		// Increment and save
+		UserCouponUsesEntity userUse = new UserCouponUsesEntity();
+		userUse.setUserName(redeemCouponRequest.getUsername());
+		userUse.setRedeemedAt(OffsetDateTime.now());
+		userUse.setCoupon(coupon);
+
+		userUsesSet.add(userUse);
+
 		coupon.setCurrentRedemptions(coupon.getCurrentRedemptions() + 1);
-		// TODO add userId to the coupon redemptions to prevent multiple redemptions by the same user
 		couponRepository.save(coupon);
 
-		return couponMapper.toRedeemResponse(coupon);
+		return couponMapper.toRedeemResponse(coupon, redeemCouponRequest.getUsername());
+	}
+
+	private void ensureUserRedeemable(UUID couponId, RedeemCouponRequest redeemCouponRequest) {
+
+		String username = redeemCouponRequest.getUsername();
+
+		if (userCouponUsesRepository.existsByCouponIdAndUserNameIgnoreCase(couponId, username)) {
+			throw new CouponAlreadyRedeemedException(couponId);
+		}
 	}
 
 	private void ensureRedeemable(CouponEntity coupon) {

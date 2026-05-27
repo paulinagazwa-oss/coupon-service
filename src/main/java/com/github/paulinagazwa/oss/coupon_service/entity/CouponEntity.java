@@ -52,6 +52,6 @@ public class CouponEntity {
 	@Column(length = 2, nullable = false)
 	private String country;
 
-	@OneToMany(mappedBy = "userName", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OneToMany(mappedBy = "coupon", cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<UserCouponUsesEntity> userUses = new HashSet<>();
 }

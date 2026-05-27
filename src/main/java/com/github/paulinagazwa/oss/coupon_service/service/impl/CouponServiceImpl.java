@@ -108,7 +108,6 @@ public class CouponServiceImpl implements CouponService {
 
 		// Check country, delegated to GeoLocationService
 		// always check as last, to avoid unnecessary calls to GeoLocationService
-		// TODO check localhost - "Unknown" error
 		ensureValidCountry(coupon, clientIp);
 
 		if (advisoryLockRepository.tryToLockId(convertStringToLong(coupon.getName(), couponId))) {

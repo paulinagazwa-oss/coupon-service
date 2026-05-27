@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class GeoLocationServiceImplTest {
 
@@ -174,4 +175,52 @@ class GeoLocationServiceImplTest {
         service = createService("xml", "");
         assertThat(service.resolveCountry(VALID_IP)).isEqualTo(UNKNOWN);
     }
+
+	// -------------------------
+	// local IP
+	// -------------------------
+
+
+	@Test
+	void shouldReturnPLForLocalhostIPv4() {
+		GeoLocationServiceImpl service = createService(FORMAT_PLAIN, "");
+
+		String result = service.resolveCountry("127.0.0.1");
+
+		assertThat(result).isEqualTo("PL");
+	}
+
+	@Test
+	void shouldReturnPLForLocalhostIPv6() {
+		GeoLocationServiceImpl service = createService(FORMAT_PLAIN, "");
+
+		String result = service.resolveCountry("::1");
+
+		assertThat(result).isEqualTo("PL");
+	}
+
+	@Test
+	void shouldReturnPLForLocalhostName() {
+		GeoLocationServiceImpl service = createService(FORMAT_PLAIN, "");
+
+		String result = service.resolveCountry("localhost");
+
+		assertThat(result).isEqualTo("PL");
+	}
+
+	private GeoLocationServiceImpl createService() {
+		RestClient.Builder builder = mock(RestClient.Builder.class);
+
+		// Nie będzie użyty (bo local IP kończy metodę wcześniej),
+		// więc wystarczy minimalny mock
+		RestClient restClient = mock(RestClient.class);
+
+		return new GeoLocationServiceImpl(
+				builder,
+				"http://fake-url/{ip}",
+				"countryCode",
+				"json"
+		);
+	}
+
 }

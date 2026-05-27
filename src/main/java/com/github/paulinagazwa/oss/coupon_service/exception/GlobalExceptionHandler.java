@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
     }
 
 	@ExceptionHandler(CouponAlreadyInUseException.class)
-	public ResponseEntity<Problem> handleAlreadyLock(CouponAlreadyRedeemedException ex, HttpServletRequest request) {
+	public ResponseEntity<Problem> handleAlreadyLock(CouponAlreadyInUseException ex, HttpServletRequest request) {
 		return buildProblem(HttpStatus.CONFLICT, ProblemTitles.CONFLICT, ex.getMessage(), request.getRequestURI());
 	}
 

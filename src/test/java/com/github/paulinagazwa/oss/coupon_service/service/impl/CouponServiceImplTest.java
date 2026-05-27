@@ -7,6 +7,7 @@ import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponRequest;
 import com.github.paulinagazwa.oss.coupon_service.api.model.RedeemCouponResponse;
 import com.github.paulinagazwa.oss.coupon_service.entity.CouponEntity;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyExistsException;
+import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyInUseException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponAlreadyRedeemedException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponCountryMismatchException;
 import com.github.paulinagazwa.oss.coupon_service.exception.CouponNotFoundException;
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -243,7 +245,7 @@ class CouponServiceImplTest {
 	void shouldRedeemCouponSuccessfully() {
 
 		UUID couponId = UUID.randomUUID();
-		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, PARTIAL_REDEMPTIONS);
+		CouponEntity coupon = redeemableCoupon(couponId, PARTIAL_REDEMPTIONS);
 		RedeemCouponResponse expectedResponse = new RedeemCouponResponse();
 
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
@@ -260,7 +262,7 @@ class CouponServiceImplTest {
 	void shouldIncrementCurrentRedemptionsWhenRedeeming() {
 
 		UUID couponId = UUID.randomUUID();
-		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, PARTIAL_REDEMPTIONS);
+		CouponEntity coupon = redeemableCoupon(couponId, PARTIAL_REDEMPTIONS);
 
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
 		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
@@ -288,7 +290,7 @@ class CouponServiceImplTest {
 	void shouldThrowWhenCouponReachedMaxRedemptions() {
 
 		UUID couponId = UUID.randomUUID();
-		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, MAX_REDEMPTIONS);
+		CouponEntity coupon = redeemableCoupon(couponId, MAX_REDEMPTIONS);
 
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
 
@@ -298,10 +300,39 @@ class CouponServiceImplTest {
 	}
 
 	@Test
+	void shouldThrowWhenCouponUsedByUser() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, PARTIAL_REDEMPTIONS);
+
+		when(couponRepository.findById(any())).thenReturn(Optional.of(coupon));
+		when(userCouponUsesRepository.existsByCouponIdAndUserNameIgnoreCase(couponId, USERNAME)).thenReturn(true);
+
+		assertThatThrownBy(() -> couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isInstanceOf(CouponAlreadyRedeemedException.class);
+		verify(couponRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldThrowWhenLockCannotBeSet() {
+
+		UUID couponId = UUID.randomUUID();
+		CouponEntity coupon = redeemableCoupon(couponId, PARTIAL_REDEMPTIONS);
+
+		when(couponRepository.findById(any())).thenReturn(Optional.of(coupon));
+		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn(COUPON_COUNTRY);
+		when(advisoryLockRepository.tryToLockId(anyLong())).thenReturn(false);
+
+		assertThatThrownBy(() -> couponService.redeemCoupon(couponId, new RedeemCouponRequest(USERNAME), CLIENT_IP))
+				.isInstanceOf(CouponAlreadyInUseException.class);
+		verify(couponRepository, never()).save(any());
+	}
+
+	@Test
 	void shouldThrowWhenClientCountryDoesNotMatchCouponCountry() {
 
 		UUID couponId = UUID.randomUUID();
-		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, PARTIAL_REDEMPTIONS);
+		CouponEntity coupon = redeemableCoupon(couponId, PARTIAL_REDEMPTIONS);
 
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
 		when(geoLocationService.resolveCountry(CLIENT_IP)).thenReturn("DE");
@@ -315,7 +346,7 @@ class CouponServiceImplTest {
 	void shouldCheckRedeemabilityBeforeCallingGeoLocationService() {
 
 		UUID couponId = UUID.randomUUID();
-		CouponEntity coupon = redeemableCoupon(couponId, COUPON_COUNTRY, MAX_REDEMPTIONS, MAX_REDEMPTIONS);
+		CouponEntity coupon = redeemableCoupon(couponId, MAX_REDEMPTIONS);
 
 		when(couponRepository.findById(couponId)).thenReturn(Optional.of(coupon));
 
@@ -324,13 +355,67 @@ class CouponServiceImplTest {
 		verify(geoLocationService, never()).resolveCountry(any());
 	}
 
-	private CouponEntity redeemableCoupon(UUID id, String country, int maxRedemptions, int currentRedemptions) {
+
+	@Test
+	void shouldReturnSameHashForSameInput() {
+		String input = "test-string";
+		UUID couponId = UUID.randomUUID();
+
+		int result1 = CouponServiceImpl.convertStringToLong(input, couponId);
+		int result2 = CouponServiceImpl.convertStringToLong(input, couponId);
+
+		assertThat(result1).isEqualTo(result2);
+	}
+
+	@Test
+	void shouldReturnDifferentHashForDifferentInput() {
+		UUID couponId = UUID.randomUUID();
+
+		int result1 = CouponServiceImpl.convertStringToLong("input1", couponId);
+		int result2 = CouponServiceImpl.convertStringToLong("input2", couponId);
+
+		assertThat(result1).isNotEqualTo(result2);
+	}
+
+	@Test
+	void shouldThrowExceptionForNullString() {
+		UUID couponId = UUID.randomUUID();
+
+		assertThatThrownBy(() -> CouponServiceImpl.convertStringToLong(null, couponId))
+				.isInstanceOf(CouponNotFoundException.class)
+				.hasMessageContaining(couponId.toString());
+	}
+
+	@Test
+	void shouldGenerateHashForEmptyString() {
+		UUID couponId = UUID.randomUUID();
+
+		int result = CouponServiceImpl.convertStringToLong("", couponId);
+
+		// tylko sprawdzamy że działa (empty string jest valid)
+		assertThat(result).isNotZero();
+	}
+
+	@Test
+	void shouldBeConsistentAcrossMultipleCalls() {
+		String input = "consistent-test";
+		UUID couponId = UUID.randomUUID();
+
+		int first = CouponServiceImpl.convertStringToLong(input, couponId);
+
+		for (int i = 0; i < 10; i++) {
+			assertThat(CouponServiceImpl.convertStringToLong(input, couponId))
+					.isEqualTo(first);
+		}
+	}
+
+	private CouponEntity redeemableCoupon(UUID id, int currentRedemptions) {
 
 		CouponEntity coupon = new CouponEntity();
 		coupon.setId(id);
 		coupon.setName(UUID.randomUUID().toString());
-		coupon.setCountry(country);
-		coupon.setMaxRedemptions(maxRedemptions);
+		coupon.setCountry(CouponServiceImplTest.COUPON_COUNTRY);
+		coupon.setMaxRedemptions(CouponServiceImplTest.MAX_REDEMPTIONS);
 		coupon.setCurrentRedemptions(currentRedemptions);
 		return coupon;
 	}

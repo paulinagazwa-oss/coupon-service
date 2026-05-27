@@ -102,6 +102,21 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().getDetail()).contains(couponId.toString());
     }
 
+	@Test
+	void shouldReturn409WhenCouponAlreadyInUse() {
+		String exceptionMessage = "Coupon is busy at the moment, try again later.";
+		CouponAlreadyInUseException ex = new CouponAlreadyInUseException();
+
+		ResponseEntity<Problem> response = handler.handleAlreadyLock(ex, request);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+		assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+		assertThat(response.getBody()).isNotNull();
+		assertThat(response.getBody().getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+		assertThat(response.getBody().getTitle()).isEqualTo(ProblemTitles.CONFLICT);
+		assertThat(response.getBody().getDetail()).contains(exceptionMessage);
+	}
+
     @Test
     void shouldReturn400WithFieldErrorsWhenValidationFails() {
         BindingResult bindingResult = mock(BindingResult.class);

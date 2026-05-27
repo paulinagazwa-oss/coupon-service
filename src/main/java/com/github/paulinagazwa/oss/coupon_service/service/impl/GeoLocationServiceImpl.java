@@ -9,6 +9,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.net.InetAddress;
 import java.net.http.HttpClient;
 import java.time.Duration;
 
@@ -49,10 +50,17 @@ public class GeoLocationServiceImpl implements GeoLocationService {
 
 	@Override
 	public String resolveCountry(String ipAddress) {
+
 		if (ipAddress == null || ipAddress.isBlank()) {
 			log.warn("Received null or blank IP address");
 			return UNKNOWN;
 		}
+
+		if (isLocalIp(ipAddress)) {
+			log.info("Received local IP address: {}", ipAddress);
+			return "PL";
+		}
+
 		try {
 			String response = fetchResponse(ipAddress);
 			return parseResponse(response, ipAddress);
@@ -101,5 +109,15 @@ public class GeoLocationServiceImpl implements GeoLocationService {
 			return UNKNOWN;
 		}
 		return trimmed;
+	}
+
+	private boolean isLocalIp(String ip) {
+
+		try {
+			InetAddress address = InetAddress.getByName(ip);
+			return address.isLoopbackAddress() || address.isSiteLocalAddress();
+		} catch (Exception e) {
+			return false;
+		}
 	}
 }

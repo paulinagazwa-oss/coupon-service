@@ -84,7 +84,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RedeemCouponRequest' # TODO needed or JWT?
+              $ref: '#/components/schemas/RedeemCouponRequest' # at prod JWT/OAuth needed to get username from token, but for testing we can pass it in request body
       responses:
         '200':
           description: Coupon redeemed successfully
@@ -137,10 +137,11 @@ components:
       required:
         - maxRedemptions
         - discount
-        - discountType # TODO percentage or fixed amount? Needed?
+        - discountType
       properties:
-        name: # TODO optional, can be auto-generated if not provided or not needed at all
+        name:
           type: string
+          description: Optional. If not provided, a random name will be generated. If provided, it must be unique. Case sensitive is ignored.
           example: "SUMMER2024"
         discount:
           type: number

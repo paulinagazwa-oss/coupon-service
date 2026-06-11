@@ -26,7 +26,7 @@ Password for database can be set in environment variable `DB_PASSWORD` and `DB_U
 
 ```bash
 mvn clean package
-java -jar target/bio-garden-${project.version}.jar
+java -jar target/coupon-service-${project.version}.jar
 ```
 
 ### WAR (deploy to external Tomcat)
@@ -34,7 +34,7 @@ java -jar target/bio-garden-${project.version}.jar
 ```bash
 mvn clean package -P server
 ```
-Place the target/garden-${project.version}.war file in the deployments/ directory of your OpenShift/Amazon EKS/Google GKE/Azure AKS image (e.g. jboss-eap or
+Place the target/coupon-service-${project.version}.war file in the deployments/ directory of your OpenShift/Amazon EKS/Google GKE/Azure AKS image (e.g. jboss-eap or
 tomcat).
 
 ## API
